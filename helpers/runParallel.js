@@ -4,12 +4,28 @@
  * Keeps workers capped at CPU count.
  */
 
-const { ParallelConstants } = require('../constants.js');
+const { ParallelConstants, Browsers } = require('../constants.js');
 
 const { spawn } = require(ParallelConstants.MODULES.CHILD_PROCESS);
 const os = require(ParallelConstants.MODULES.OS);
 const glob = require(ParallelConstants.MODULES.GLOB);
 const fs = require(ParallelConstants.MODULES.FS);
+
+// !! validate browser before running anything !!
+const browserArgIndex = process.argv.indexOf('--browser');
+if (browserArgIndex !== -1) {
+  const browser = process.argv[browserArgIndex + 1]?.toLowerCase();
+  const valid = Object.values(Browsers);
+
+  if (!valid.includes(browser)) {
+    console.error(
+      `[ParallelRunner] ERROR: Unsupported browser "${browser}". Valid options: ${valid.join(
+        ', '
+      )}`
+    );
+    process.exit(1);
+  }
+}
 
 function log(message) {
   const timestamp = new Date().toISOString();

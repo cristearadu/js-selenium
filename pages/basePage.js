@@ -2,7 +2,11 @@ const { Builder, By, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 const firefox = require('selenium-webdriver/firefox');
 const edge = require('selenium-webdriver/edge');
-const { ParallelConstants, BasePageConstants } = require('../constants.js');
+const {
+  ParallelConstants,
+  BasePageConstants,
+  Browsers,
+} = require('../constants.js');
 
 class BasePage {
   /**
@@ -34,32 +38,33 @@ class BasePage {
     );
     const options = this.getBrowserOptions(browser, isHeadless);
 
-    switch (browser) {
-      case 'chrome':
-        this.driver = new Builder()
-          .forBrowser('chrome')
-          .setChromeOptions(options)
-          .build();
-        break;
-      case 'edge':
-        this.driver = new Builder()
+    const driverBuilders = {
+      [Browsers.CHROME]: () =>
+        new Builder().forBrowser('chrome').setChromeOptions(options).build(),
+
+      [Browsers.EDGE]: () =>
+        new Builder()
           .forBrowser('MicrosoftEdge')
           .setEdgeOptions(options)
-          .build();
-        break;
-      case 'firefox':
-        this.driver = new Builder()
-          .forBrowser('firefox')
-          .setFirefoxOptions(options)
-          .build();
-        break;
-      case 'safari':
-        // Safari does not support options like headless mode
-        this.driver = new Builder().forBrowser('safari').build();
-        break;
-      default:
-        throw new Error(`Unsupported browser: ${browser}`);
+          .build(),
+
+      [Browsers.FIREFOX]: () =>
+        new Builder().forBrowser('firefox').setFirefoxOptions(options).build(),
+
+      [Browsers.SAFARI]: () => new Builder().forBrowser('safari').build(),
+    };
+
+    if (!driverBuilders[browser]) {
+      /*
+      SAFEGUARD
+      If somehow the code misbehaves or runParallel is bypassed,
+      the worker will cleanly exit.
+      */
+      console.error(`[${timestamp}][BasePage] Unsupported browser: ${browser}`);
+      process.exit(1);
     }
+
+    this.driver = driverBuilders[browser]();
 
     this.driver.manage().setTimeouts({
       implicit: BasePageConstants.IMPLICIT_TIMEOUT,

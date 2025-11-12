@@ -35,4 +35,16 @@ const LoginTestConstants = {
   ERROR_MESSAGE: 'Your username is invalid!',
 };
 
-module.exports = { ParallelConstants, BasePageConstants, LoginTestConstants };
+const Browsers = {
+  CHROME: 'chrome',
+  FIREFOX: 'firefox',
+  EDGE: 'edge',
+  SAFARI: 'safari',
+};
+
+module.exports = {
+  ParallelConstants,
+  BasePageConstants,
+  LoginTestConstants,
+  Browsers,
+};
