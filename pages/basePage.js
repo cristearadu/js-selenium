@@ -32,6 +32,8 @@ class BasePage {
       }
     }
 
+    this.browser = browser;
+
     // determine if headless mode should be enabled (default true unless --headless=no)
     const isHeadless = process.argv.includes('--headless');
     console.log(
@@ -224,6 +226,14 @@ class BasePage {
 
       default:
         throw new Error(`Unsupported browser: ${browser}`);
+    }
+  }
+
+  async safeClick(element) {
+    if (this.browser === 'safari') {
+      await this.driver.executeScript('arguments[0].click()', element);
+    } else {
+      await element.click();
     }
   }
 }

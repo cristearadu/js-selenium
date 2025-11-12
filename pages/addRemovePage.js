@@ -2,7 +2,8 @@ const { BasePage, By } = require('./basePage');
 
 class AddRemovePage extends BasePage {
   constructor() {
-    super();
+    super(undefined);
+    this.browser = super.browser;
     this.url = 'https://the-internet.herokuapp.com/add_remove_elements/';
     this.addButton = By.css('button[onclick="addElement()"]');
     this.deleteButton = By.css('.added-manually');
@@ -24,7 +25,7 @@ class AddRemovePage extends BasePage {
     );
     const addBtn = await this.find(this.addButton);
     for (let i = 0; i < count; i++) {
-      await addBtn.click();
+      await this.safeClick(addBtn);
       console.log(
         `[${new Date().toISOString()}][AddRemovePage] Added element ${i + 1}`
       );
@@ -52,7 +53,7 @@ class AddRemovePage extends BasePage {
       `[${new Date().toISOString()}][AddRemovePage] Removing one element`
     );
     const deleteBtn = await this.find(this.deleteButton);
-    await deleteBtn.click();
+    await this.safeClick(deleteBtn);
     console.log(`[${new Date().toISOString()}][AddRemovePage] Element removed`);
   }
 }

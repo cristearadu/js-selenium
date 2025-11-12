@@ -1,8 +1,11 @@
+const { Browser } = require('selenium-webdriver');
+const { BasePageConstants } = require('../constants');
 const { BasePage, By } = require('./basePage');
 
 class LoginPage extends BasePage {
   constructor() {
-    super();
+    super(undefined);
+    this.browser = super.browser;
     this.url = 'https://the-internet.herokuapp.com/login';
     this.usernameInput = By.id('username');
     this.passwordInput = By.id('password');
@@ -22,23 +25,18 @@ class LoginPage extends BasePage {
 
   async login(username, password) {
     console.log(`[${new Date().toISOString()}][LoginPage] Typing username`);
-    await (await this.find(this.usernameInput)).sendKeys(username);
+    const userEl = await this.find(this.usernameInput);
+    await userEl.sendKeys(username);
+
     console.log(`[${new Date().toISOString()}][LoginPage] Typing password`);
-    await (await this.find(this.passwordInput)).sendKeys(password);
+    const passEl = await this.find(this.passwordInput);
+    await passEl.sendKeys(password);
+
     console.log(
       `[${new Date().toISOString()}][LoginPage] Clicking login button`
     );
-
     const button = await this.find(this.loginButton);
-
-    if (this.browser === 'safari') {
-      console.log(
-        `[${new Date().toISOString()}][LoginPage] Using JS click for Safari`
-      );
-      await this.driver.executeScript('arguments[0].click();', button);
-    } else {
-      await button.click();
-    }
+    await this.safeClick(button);
   }
 
   async getFlashText() {
