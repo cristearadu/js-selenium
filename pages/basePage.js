@@ -33,7 +33,7 @@ class BasePage {
     }
 
     // determine if headless mode should be enabled (default true unless --headless=no)
-    const isHeadless = !process.argv.includes('--headless=no');
+    const isHeadless = process.argv.includes('--headless');
     console.log(
       `[${timestamp}][BasePage] Initializing WebDriver for browser: ${browser} (headless=${isHeadless})`
     );

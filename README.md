@@ -18,7 +18,7 @@ Install dependencies:
 npm install
 ```
 
-Run the tests (defaults to Chrome headless):
+Run the tests (defaults to Chrome, non‑headless):
 
 ```
 npm test
@@ -40,16 +40,24 @@ Safari:
 npm test -- --browser safari
 ```
 
-Disable headless mode:
+Run in headless mode:
 
 ```
-npm test -- --headless=no
+npm test -- --headless
+```
+
+By default, tests run in normal (non‑headless) mode unless the --headless flag is provided.
+
+```
+⚠️ Note about Safari:
+Does not support running multiple WebDriver sessions in parallel.
+When selecting `--browser safari`, the test runner will automatically fall back to a single worker.
 ```
 
 You can also combine options:
 
 ```
-npm test -- --browser edge --headless=no
+npm test -- --browser chrome --headless
 ```
 
 ## Project structure

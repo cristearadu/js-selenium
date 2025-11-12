@@ -4,6 +4,9 @@
  * Keeps workers capped at CPU count.
  */
 
+// forces Node to reload the file fresh on every invocation, so the browser detection is correct
+delete require.cache[__filename];
+
 const { ParallelConstants, Browsers } = require('../constants.js');
 
 const { spawn } = require(ParallelConstants.MODULES.CHILD_PROCESS);
@@ -11,10 +14,15 @@ const os = require(ParallelConstants.MODULES.OS);
 const glob = require(ParallelConstants.MODULES.GLOB);
 const fs = require(ParallelConstants.MODULES.FS);
 
-// !! validate browser before running anything !!
+// extract browser argument globally so it's usable everywhere in the file
 const browserArgIndex = process.argv.indexOf('--browser');
-if (browserArgIndex !== -1) {
-  const browser = process.argv[browserArgIndex + 1]?.toLowerCase();
+const browser =
+  browserArgIndex !== -1
+    ? process.argv[browserArgIndex + 1]?.toLowerCase()
+    : null;
+
+// !! validate browser before running anything !!
+if (browser) {
   const valid = Object.values(Browsers);
 
   if (!valid.includes(browser)) {
@@ -41,6 +49,16 @@ function parseArgs(argv) {
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
+    /*
+    SAFEGUARD
+    prevent "headless" without -- from being treated as a file pattern
+    */
+    if (!arg.startsWith('--') && arg.toLowerCase().includes('headless')) {
+      console.error(
+        `[ParallelRunner] ERROR: Invalid flag "${arg}". Use "--headless" instead.`
+      );
+      process.exit(1);
+    }
     if (!foundFlag && arg.startsWith(ParallelConstants.ARG_FLAG_PREFIX)) {
       foundFlag = true;
     }
@@ -94,7 +112,16 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
 
   // limit concurrency to number of CPU cores or number of tests, whichever is smaller, considering jobs flag
   const numCores = os.cpus().length;
-  const maxWorkers = Math.min(tests.length, jobs || numCores);
+  let maxWorkers;
+
+  if (browser === Browsers.SAFARI) {
+    console.log(
+      `[${new Date().toISOString()}][ParallelRunner] Safari detected — forcing single-thread execution (SafariDriver limitation)`
+    );
+    maxWorkers = 1;
+  } else {
+    maxWorkers = Math.min(tests.length, numCores);
+  }
 
   log(
     `Detected ${numCores} cores, total tests: ${tests.length}, max workers: ${maxWorkers}`

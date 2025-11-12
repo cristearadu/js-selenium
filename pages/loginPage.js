@@ -6,7 +6,7 @@ class LoginPage extends BasePage {
     this.url = 'https://the-internet.herokuapp.com/login';
     this.usernameInput = By.id('username');
     this.passwordInput = By.id('password');
-    this.loginButton = By.css('button.radius');
+    this.loginButton = By.xpath('//form[@id="login"]//button[@type="submit"]'); // safari does not support css button:submit
     this.flashMessage = By.id('flash');
   }
 
@@ -28,7 +28,17 @@ class LoginPage extends BasePage {
     console.log(
       `[${new Date().toISOString()}][LoginPage] Clicking login button`
     );
-    await (await this.find(this.loginButton)).click();
+
+    const button = await this.find(this.loginButton);
+
+    if (this.browser === 'safari') {
+      console.log(
+        `[${new Date().toISOString()}][LoginPage] Using JS click for Safari`
+      );
+      await this.driver.executeScript('arguments[0].click();', button);
+    } else {
+      await button.click();
+    }
   }
 
   async getFlashText() {
