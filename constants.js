@@ -10,6 +10,9 @@ const ParallelConstants = {
     GLOB: 'glob',
     FS: 'fs',
   },
+};
+
+const BasePageConstants = {
   DEFAULT_BROWSER: 'chrome',
   IMPLICIT_TIMEOUT: 5000,
   PAGELOAD_TIMEOUT: 10000,
@@ -27,4 +30,4 @@ const LoginTestConstants = {
   ERROR_MESSAGE: 'Your username is invalid!',
 };
 
-module.exports = { ParallelConstants, LoginTestConstants };
+module.exports = { ParallelConstants, BasePageConstants, LoginTestConstants };

@@ -11,11 +11,17 @@ const os = require(ParallelConstants.MODULES.OS);
 const glob = require(ParallelConstants.MODULES.GLOB);
 const fs = require(ParallelConstants.MODULES.FS);
 
-// Parses command line args into test file patterns and extra Mocha args (anything after a --flag)
+function log(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}][ParallelRunner] ${message}`);
+}
+
+// parses command line args into test file patterns, extra Mocha args (anything after a --flag), and jobs count
 function parseArgs(argv) {
   const testFiles = [];
   const extraArgs = [];
   let foundFlag = false;
+  let jobs = null;
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -24,14 +30,26 @@ function parseArgs(argv) {
     }
     if (foundFlag) {
       extraArgs.push(arg);
+      if (arg === '--jobs' && i + 1 < argv.length) {
+        const val = Number(argv[i + 1]);
+        if (!isNaN(val) && val > 0) {
+          jobs = val;
+          i++; // skip next arg since it's the jobs number
+        }
+      }
     } else {
       testFiles.push(arg);
     }
   }
-  return { testFiles, extraArgs };
+  log(
+    `Parsed arguments - testFiles: ${JSON.stringify(
+      testFiles
+    )}, extraArgs: ${JSON.stringify(extraArgs)}, jobs: ${jobs}`
+  );
+  return { testFiles, extraArgs, jobs };
 }
 
-// Reads a test file and extracts all test case names from it (looking for it(...) calls)
+// reads a test file and extracts all test case names from it (looking for it(...) calls)
 function extractTestsFromFile(file) {
   const content = fs.readFileSync(file, ParallelConstants.UTF8_ENCODING);
   const regex = ParallelConstants.TEST_NAME_REGEX;
@@ -43,11 +61,12 @@ function extractTestsFromFile(file) {
   return tests;
 }
 
-async function runTestsInParallel(testFiles, extraArgs) {
-  // Expand glob patterns to actual files
+async function runTestsInParallel(testFiles, extraArgs, jobs) {
+  // expand glob patterns to actual files
   const resolvedFiles = testFiles.flatMap((pattern) => glob.sync(pattern));
+  log(`Discovered ${resolvedFiles.length} test files`);
 
-  // Gather all individual test cases with their file names
+  // gather all individual test cases with their file names
   const tests = [];
   for (const file of resolvedFiles) {
     const testNames = extractTestsFromFile(file);
@@ -55,10 +74,15 @@ async function runTestsInParallel(testFiles, extraArgs) {
       tests.push({ file, name });
     }
   }
+  log(`Discovered ${tests.length} test cases`);
 
-  // Limit concurrency to number of CPU cores or number of tests, whichever is smaller
+  // limit concurrency to number of CPU cores or number of tests, whichever is smaller, considering jobs flag
   const numCores = os.cpus().length;
-  const maxWorkers = Math.min(tests.length, numCores);
+  const maxWorkers = Math.min(tests.length, jobs || numCores);
+
+  log(
+    `Detected ${numCores} cores, total tests: ${tests.length}, max workers: ${maxWorkers}`
+  );
 
   let running = 0;
   let index = 0;
@@ -72,6 +96,9 @@ async function runTestsInParallel(testFiles, extraArgs) {
         if (exitCodes.some((code) => code !== 0)) {
           process.exitCode = 1;
         }
+        const passed = exitCodes.filter((code) => code === 0).length;
+        const failed = exitCodes.filter((code) => code !== 0).length;
+        log(`All tests completed. Passed: ${passed}, Failed: ${failed}`);
         resolve();
         return;
       }
@@ -79,6 +106,7 @@ async function runTestsInParallel(testFiles, extraArgs) {
       while (running < maxWorkers && index < tests.length) {
         const test = tests[index++];
         running++;
+        log(`Running test: ${test.name} from ${test.file}`);
 
         /*
         Spawn a new Node process running mocha with --grep to run only this test
@@ -99,12 +127,18 @@ async function runTestsInParallel(testFiles, extraArgs) {
 
         child.on('exit', (code) => {
           exitCodes.push(code);
+          log(
+            `Test finished: ${test.name} from ${test.file} with exit code ${code}`
+          );
           running--;
           runNext();
         });
 
         child.on('error', () => {
           exitCodes.push(1);
+          log(
+            `Test finished: ${test.name} from ${test.file} with exit code 1 (error)`
+          );
           running--;
           runNext();
         });
@@ -114,7 +148,7 @@ async function runTestsInParallel(testFiles, extraArgs) {
   });
 }
 
-const { testFiles, extraArgs } = parseArgs(process.argv);
-runTestsInParallel(testFiles, extraArgs);
+const { testFiles, extraArgs, jobs } = parseArgs(process.argv);
+runTestsInParallel(testFiles, extraArgs, jobs);
 
 module.exports = runTestsInParallel;
