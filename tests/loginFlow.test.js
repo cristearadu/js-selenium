@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const LoginPage = require('../pages/loginPage');
+const { LoginTestConstants } = require('../constants.js');
 
 describe('Login Tests', function () {
   let page;
@@ -14,14 +15,20 @@ describe('Login Tests', function () {
   });
 
   it('should login successfully with valid credentials', async function () {
-    await page.login('tomsmith', 'SuperSecretPassword!');
+    await page.login(
+      LoginTestConstants.VALID_USERNAME,
+      LoginTestConstants.VALID_PASSWORD
+    );
     const message = await page.getFlashText();
-    expect(message).to.include('You logged into a secure area!');
+    expect(message).to.include(LoginTestConstants.SUCCESS_MESSAGE);
   });
 
   it('should show error with invalid credentials', async function () {
-    await page.login('invalidUser', 'wrongPassword');
+    await page.login(
+      LoginTestConstants.INVALID_USERNAME,
+      LoginTestConstants.INVALID_PASSWORD
+    );
     const message = await page.getFlashText();
-    expect(message).to.include('Your username is invalid!');
+    expect(message).to.include(LoginTestConstants.ERROR_MESSAGE);
   });
 });

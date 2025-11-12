@@ -18,4 +18,13 @@ const ParallelConstants = {
   DEFAULT_WAIT: 5000,
 };
 
-module.exports = { ParallelConstants };
+const LoginTestConstants = {
+  VALID_USERNAME: 'tomsmith',
+  VALID_PASSWORD: 'SuperSecretPassword!',
+  INVALID_USERNAME: 'invalidUser',
+  INVALID_PASSWORD: 'wrongPassword',
+  SUCCESS_MESSAGE: 'You logged into a secure area!',
+  ERROR_MESSAGE: 'Your username is invalid!',
+};
+
+module.exports = { ParallelConstants, LoginTestConstants };
