@@ -6,6 +6,7 @@ const {
   ParallelConstants,
   BasePageConstants,
   Browsers,
+  WebDriverIds,
 } = require('../constants.js');
 
 class BasePage {
@@ -40,18 +41,26 @@ class BasePage {
 
     const driverBuilders = {
       [Browsers.CHROME]: () =>
-        new Builder().forBrowser('chrome').setChromeOptions(options).build(),
+        new Builder()
+          .forBrowser(WebDriverIds[Browsers.CHROME])
+          .setChromeOptions(options)
+          .build(),
 
       [Browsers.EDGE]: () =>
         new Builder()
-          .forBrowser('MicrosoftEdge')
+          .forBrowser(WebDriverIds[Browsers.EDGE])
           .setEdgeOptions(options)
           .build(),
 
       [Browsers.FIREFOX]: () =>
-        new Builder().forBrowser('firefox').setFirefoxOptions(options).build(),
+        new Builder()
+          .forBrowser(WebDriverIds[Browsers.FIREFOX])
+          .setFirefoxOptions(options)
+          .build(),
 
-      [Browsers.SAFARI]: () => new Builder().forBrowser('safari').build(),
+      // Safari doesn't support headless mode or options in this context
+      [Browsers.SAFARI]: () =>
+        new Builder().forBrowser(WebDriverIds[Browsers.SAFARI]).build(),
     };
 
     if (!driverBuilders[browser]) {

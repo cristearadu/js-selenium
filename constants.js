@@ -42,9 +42,17 @@ const Browsers = {
   SAFARI: 'safari',
 };
 
+const WebDriverIds = {
+  [Browsers.CHROME]: 'chrome',
+  [Browsers.FIREFOX]: 'firefox',
+  [Browsers.EDGE]: 'MicrosoftEdge',
+  [Browsers.SAFARI]: 'safari',
+};
+
 module.exports = {
   ParallelConstants,
   BasePageConstants,
   LoginTestConstants,
   Browsers,
+  WebDriverIds,
 };
