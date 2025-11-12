@@ -1,0 +1,53 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables and local settings
+.env
+.env.local
+.DS_Store
+
+# Logs
+logs/
+*.log
+debug.log
+log.txt
+
+# Coverage / reports
+coverage/
+reports/
+allure-results/
+allure-report/
+*.html
+
+# Output from test runs or CI
+test-output/
+output/
+*.xml
+*.json
+*.csv
+
+# IDE / Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+
+# Temporary files
+temp/
+tmp/
+
+# Selenium / WebDriver artifacts
+selenium-debug.log
+screenshots/
+*.png
+
+# Docker / Compose
+*.pid
+*.tar
+*.iml
