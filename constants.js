@@ -10,6 +10,11 @@ const ParallelConstants = {
     GLOB: 'glob',
     FS: 'fs',
   },
+  STDIO_CONST: {
+    IGNORE: 'ignore',
+    PIPE: 'pipe',
+  },
+  NEWLINE_SPLIT_REGEX: /\r?\n/,
 };
 
 const BasePageConstants = {

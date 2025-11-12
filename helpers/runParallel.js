@@ -104,7 +104,9 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
       }
 
       while (running < maxWorkers && index < tests.length) {
-        const test = tests[index++];
+        const test = tests[index];
+        const workerLabel = `[Worker-${index}]`;
+        index++;
         running++;
         log(`Running test: ${test.name} from ${test.file}`);
 
@@ -122,7 +124,30 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
           ...extraArgs,
         ];
         const child = spawn(process.execPath, args, {
-          stdio: ParallelConstants.STDIO_MODE,
+          stdio: [
+            ParallelConstants.STDIO_CONST.IGNORE,
+            ParallelConstants.STDIO_CONST.PIPE,
+          ],
+        });
+
+        // Prefix stdout lines with worker label
+        child.stdout.setEncoding(ParallelConstants.UTF8_ENCODING);
+        child.stdout.on('data', (data) => {
+          data.split(ParallelConstants.NEWLINE_SPLIT_REGEX).forEach((line) => {
+            if (line.trim() !== '') {
+              console.log(`${workerLabel} ${line}`);
+            }
+          });
+        });
+
+        // Prefix stderr lines with worker label
+        child.stderr.setEncoding(ParallelConstants.UTF8_ENCODING);
+        child.stderr.on('data', (data) => {
+          data.split(ParallelConstants.NEWLINE_SPLIT_REGEX).forEach((line) => {
+            if (line.trim() !== '') {
+              console.error(`${workerLabel} ${line}`);
+            }
+          });
         });
 
         child.on('exit', (code) => {
