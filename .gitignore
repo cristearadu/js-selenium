@@ -26,7 +26,6 @@ allure-report/
 test-output/
 output/
 *.xml
-*.json
 *.csv
 
 # IDE / Editor configs

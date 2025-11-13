@@ -1,0 +1,17 @@
+{
+  "name": "js-selenium",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node helpers/runParallel.js ./tests/*.test.js"
+  },
+  "dependencies": {
+    "chai": "^4.5.0",
+    "glob": "^10.4.5",
+    "mocha": "^11.7.5",
+    "selenium-webdriver": "^4.38.0"
+  }
+}
