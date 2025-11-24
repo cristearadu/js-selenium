@@ -1,7 +1,20 @@
 /**
- * Small helper to run mocha tests in parallel across cores;
- * Spawns a process per test name (--grep) so everything runs isolated.
- * Keeps workers capped at CPU count.
+ * Parallel Mocha Test Runner
+ *
+ * Features:
+ *  - Discovers all test files from glob patterns.
+ *  - Extracts individual test names from each file.
+ *  - Supports running a single test or subset of tests using --grep "substring".
+ *  - Spawns a dedicated Node process per test for full isolation.
+ *  - Caps concurrency to CPU count or --jobs N.
+ *  - Handles per-worker prefixed log output.
+ *  - Applies browser validation early for safety.
+ *
+ * Why this exists:
+ *  Mocha’s native parallel mode is limited and does not support parallelizing
+ *  at the individual test level. This custom runner gives deterministic,
+ *  isolated execution and allows running *exactly one test* via argument-level
+ *  filtering, without modifying code (no .only needed).
  */
 
 // forces Node to reload the file fresh on every invocation, so the browser detection is correct
@@ -40,12 +53,24 @@ function log(message) {
   console.log(`[${timestamp}][ParallelRunner] ${message}`);
 }
 
-// parses command line args into test file patterns, extra Mocha args (anything after a --flag), and jobs count
+/**
+ * Parse CLI arguments.
+ *
+ * Splits input args into:
+ *  - testFiles: glob patterns before the first flag
+ *  - extraArgs: anything after the first flag (passed to mocha workers)
+ *  - jobs: optional max worker count (via --jobs N)
+ *  - grepPattern: substring used to filter individual test names
+ *
+ * Example:
+ *   npm test -- --grep "login" --headless --jobs 3
+ */
 function parseArgs(argv) {
   const testFiles = [];
   const extraArgs = [];
   let foundFlag = false;
   let jobs = null;
+  let grepPattern = null;
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -58,6 +83,18 @@ function parseArgs(argv) {
         `[ParallelRunner] ERROR: Invalid flag "${arg}". Use "--headless" instead.`
       );
       process.exit(1);
+    }
+    if (arg === '--grep') {
+      foundFlag = true;
+      if (i + 1 >= argv.length) {
+        console.error(
+          `[ParallelRunner] ERROR: --grep requires a test name substring (e.g. --grep "login successfully")`
+        );
+        process.exit(1);
+      }
+      grepPattern = argv[i + 1];
+      i++;
+      continue;
     }
     if (!foundFlag && arg.startsWith(ParallelConstants.ARG_FLAG_PREFIX)) {
       foundFlag = true;
@@ -78,9 +115,11 @@ function parseArgs(argv) {
   log(
     `Parsed arguments - testFiles: ${JSON.stringify(
       testFiles
-    )}, extraArgs: ${JSON.stringify(extraArgs)}, jobs: ${jobs}`
+    )}, extraArgs: ${JSON.stringify(
+      extraArgs
+    )}, jobs: ${jobs}, grep: ${JSON.stringify(grepPattern)}`
   );
-  return { testFiles, extraArgs, jobs };
+  return { testFiles, extraArgs, jobs, grepPattern };
 }
 
 // reads a test file and extracts all test case names from it (looking for it(...) calls)
@@ -95,7 +134,7 @@ function extractTestsFromFile(file) {
   return tests;
 }
 
-async function runTestsInParallel(testFiles, extraArgs, jobs) {
+async function runTestsInParallel(testFiles, extraArgs, jobs, grepPattern) {
   // expand glob patterns to actual files
   const resolvedFiles = testFiles.flatMap((pattern) => glob.sync(pattern));
   log(`Discovered ${resolvedFiles.length} test files`);
@@ -110,6 +149,22 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
   }
   log(`Discovered ${tests.length} test cases`);
 
+  let filteredTests = tests;
+  if (grepPattern) {
+    const pattern = grepPattern.toLowerCase();
+    filteredTests = tests.filter((t) => t.name.toLowerCase().includes(pattern));
+    if (filteredTests.length === 0) {
+      log(
+        `No tests matched --grep pattern "${grepPattern}". Exiting with failure.`
+      );
+      process.exitCode = 1;
+      return;
+    }
+    log(
+      `Filtered tests with pattern "${grepPattern}". Remaining tests: ${filteredTests.length}`
+    );
+  }
+
   // limit concurrency to number of CPU cores or number of tests, whichever is smaller, considering jobs flag
   const numCores = os.cpus().length;
   let maxWorkers;
@@ -120,11 +175,15 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
     );
     maxWorkers = 1;
   } else {
-    maxWorkers = Math.min(tests.length, numCores);
+    if (jobs && jobs > 0) {
+      maxWorkers = Math.min(filteredTests.length, jobs);
+    } else {
+      maxWorkers = Math.min(filteredTests.length, numCores);
+    }
   }
 
   log(
-    `Detected ${numCores} cores, total tests: ${tests.length}, max workers: ${maxWorkers}`
+    `Detected ${numCores} cores, total tests: ${filteredTests.length}, max workers: ${maxWorkers}`
   );
 
   let running = 0;
@@ -134,7 +193,7 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
   return new Promise((resolve) => {
     // WOKER POOL: spawn new test runners until all tests are done
     function runNext() {
-      if (index >= tests.length && running === 0) {
+      if (index >= filteredTests.length && running === 0) {
         // tests finished -> set exit code if any failed
         if (exitCodes.some((code) => code !== 0)) {
           process.exitCode = 1;
@@ -146,17 +205,26 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
         return;
       }
 
-      while (running < maxWorkers && index < tests.length) {
-        const test = tests[index];
+      while (running < maxWorkers && index < filteredTests.length) {
+        const test = filteredTests[index];
         const workerLabel = `[Worker-${index}]`;
         index++;
         running++;
         log(`Running test: ${test.name} from ${test.file}`);
 
         /*
-        Spawn a new Node process running mocha with --grep to run only this test
-        Why? Isolates tests and allows parallel execution
-        */
+         * Spawn a dedicated mocha process for this specific test:
+         *   mocha <file> --grep "<this test name>"
+         *
+         * This ensures:
+         *   - True process-level isolation (no shared state between tests)
+         *   - Ability to run tests in parallel safely
+         *   - Compatibility with our --grep filtering at runner level
+         *
+         * The parent runner already applied global grep filtering,
+         * but each worker applies a precise per-test grep so that only
+         * the single intended test executes inside that mocha process.
+         */
         const args = [
           require.resolve('mocha/bin/_mocha'),
           test.file,
@@ -216,7 +284,7 @@ async function runTestsInParallel(testFiles, extraArgs, jobs) {
   });
 }
 
-const { testFiles, extraArgs, jobs } = parseArgs(process.argv);
-runTestsInParallel(testFiles, extraArgs, jobs);
+const { testFiles, extraArgs, jobs, grepPattern } = parseArgs(process.argv);
+runTestsInParallel(testFiles, extraArgs, jobs, grepPattern);
 
 module.exports = runTestsInParallel;

@@ -46,13 +46,31 @@ Run in headless mode:
 npm test -- --headless
 ```
 
-By default, tests run in normal (non‑headless) mode unless the --headless flag is provided.
+## Run a specific test with --grep
+
+You can now run an individual test (or a group of tests) by matching part of the test name:
 
 ```
-⚠️ Note about Safari:
-Does not support running multiple WebDriver sessions in parallel.
-When selecting `--browser safari`, the test runner will automatically fall back to a single worker.
+npm test -- --grep "login successfully"
 ```
+
+This will execute only tests whose names contain the provided substring.  
+Case‑insensitive, and works across all test files.
+
+Examples:
+
+```
+Run only the positive login test:
+npm test -- --grep "login successfully"
+
+Run only the negative login test:
+npm test -- --grep "invalid credentials"
+
+Run only the add/remove test:
+npm test -- --grep "add and remove"
+```
+
+If no test matches the pattern, the runner prints an error and exits.
 
 You can also combine options:
 
